@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>bootbph</title>
+		<link rel="stylesheet" type="text/css" href="css/bootstrap.css"/>
+		<link rel="stylesheet" type="text/css" href="css/bootbph.css"/>
+		<link rel="stylesheet" type="text/css" href="css/animate.min.css"/>
+		<!--<link rel="stylesheet" type="text/css" href="font-awesome-4.7.0/css/font-awesome.css"/>-->
+		<!--<link rel="stylesheet" type="text/css" href="responsive-nav.js-master/responsive-nav.js-master/responsive-nav.css"/>-->
+		<!--<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Open+Sans">-->
+	</head>
+	<body>
+		<div id="jianxian">
+			<h1>File.B</h1>
+		</div>
+		<div id="yuntexiao" <!--style="width: 100%,height:100px,background-color:black;-->">
+					<script type="text/javascript" src="webgl-clouds/webgl-clouds/assets/three.min.js"></script>
+					<script type="text/javascript" src="webgl-clouds/webgl-clouds/assets/Detector.js"></script>
+					<script id="vs" type="x-shader/x-vertex">
+
+						varying vec2 vUv;
+			
+						void main() {
+			
+							vUv = uv;
+							gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+			
+						}
+			
+					</script>
+					<script id="fs" type="x-shader/x-fragment">
+			
+						uniform sampler2D map;
+			
+						uniform vec3 fogColor;
+						uniform float fogNear;
+						uniform float fogFar;
+			
+						varying vec2 vUv;
+			
+						void main() {
+			
+							float depth = gl_FragCoord.z / gl_FragCoord.w;
+							float fogFactor = smoothstep( fogNear, fogFar, depth );
+			
+							gl_FragColor = texture2D( map, vUv );
+							gl_FragColor.w *= pow( gl_FragCoord.z, 20.0 );
+							gl_FragColor = mix( gl_FragColor, vec4( fogColor, gl_FragColor.w ), fogFactor );
+			
+						}
+			
+					</script>
+					
+					<script type="text/javascript">
+							
+			
+						if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+			
+						var container;
+						var camera, scene, renderer;
+						var mesh, geometry, material;
+			
+						var mouseX = 0, mouseY = 0;
+						var start_time = Date.now();
+			
+						var windowHalfX = window.innerWidth / 2;
+						var windowHalfY = window.innerHeight / 2;
+			
+						init();
+			
+						function init() {
+			
+							container = document.createElement( 'div' );
+							document.body.appendChild( container );
+			
+							// Bg gradient
+			
+							var canvas = document.createElement( 'canvas' );
+							canvas.width = 32;
+							canvas.height = window.innerHeight;
+			
+							var context = canvas.getContext( '2d' );
+			
+							var gradient = context.createLinearGradient( 0, 0, 0, canvas.height );
+							gradient.addColorStop(0, "#1e4877");
+							gradient.addColorStop(0.5, "#4584b4");
+			
+							context.fillStyle = gradient;
+							context.fillRect(0, 0, canvas.width, canvas.height);
+			
+							container.style.background = 'url(' + canvas.toDataURL('image/png') + ')';
+							container.style.backgroundSize = '32px 100%';
+			
+							//
+			
+							camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 3000 );
+							camera.position.z = 6000;
+			
+							scene = new THREE.Scene();
+			
+							geometry = new THREE.Geometry();
+			
+							var texture = THREE.ImageUtils.loadTexture( 'img/cloud10.png', null, animate );
+							texture.magFilter = THREE.LinearMipMapLinearFilter;
+							texture.minFilter = THREE.LinearMipMapLinearFilter;
+			
+							var fog = new THREE.Fog( 0x4584b4, - 100, 3000 );
+			
+							material = new THREE.ShaderMaterial( {
+			
+								uniforms: {
+			
+									"map": { type: "t", value: texture },
+									"fogColor" : { type: "c", value: fog.color },
+									"fogNear" : { type: "f", value: fog.near },
+									"fogFar" : { type: "f", value: fog.far },
+			
+								},
+								vertexShader: document.getElementById( 'vs' ).textContent,
+								fragmentShader: document.getElementById( 'fs' ).textContent,
+								depthWrite: false,
+								depthTest: false,
+								transparent: true
+			
+							} );
+			
+							var plane = new THREE.Mesh( new THREE.PlaneGeometry( 64, 64 ) );
+			
+							for ( var i = 0; i < 8000; i++ ) {
+			
+								plane.position.x = Math.random() * 1000 - 500;
+								plane.position.y = - Math.random() * Math.random() * 200 - 15;
+								plane.position.z = i;
+								plane.rotation.z = Math.random() * Math.PI;
+								plane.scale.x = plane.scale.y = Math.random() * Math.random() * 1.5 + 0.5;
+			
+								THREE.GeometryUtils.merge( geometry, plane );
+			
+							}
+			
+							mesh = new THREE.Mesh( geometry, material );
+							scene.add( mesh );
+			
+							mesh = new THREE.Mesh( geometry, material );
+							mesh.position.z = - 8000;
+							scene.add( mesh );
+			
+							renderer = new THREE.WebGLRenderer( { antialias: false } );
+							renderer.setSize( window.innerWidth, window.innerHeight );
+							container.appendChild( renderer.domElement );
+			
+							document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+							window.addEventListener( 'resize', onWindowResize, false );
+			
+						}
+			
+						function onDocumentMouseMove( event ) {
+			
+							mouseX = ( event.clientX - windowHalfX ) * 0.25;
+							mouseY = ( event.clientY - windowHalfY ) * 0.15;
+			
+						}
+			
+						function onWindowResize( event ) {
+			
+							camera.aspect = window.innerWidth / window.innerHeight;
+							camera.updateProjectionMatrix();
+			
+							renderer.setSize( window.innerWidth, window.innerHeight );
+			
+						}
+			
+						function animate() {
+			
+							requestAnimationFrame( animate );
+			
+							position = ( ( Date.now() - start_time ) * 0.03 ) % 8000;
+			
+							camera.position.x += ( mouseX - camera.position.x ) * 0.01;
+							camera.position.y += ( - mouseY - camera.position.y ) * 0.01;
+							camera.position.z = - position + 8000;
+			
+							renderer.render( scene, camera );
+			
+						}
+			
+					</script>
+					<!--<script type="text/javascript" src="js/jquery-3.1.1.min.js"></script>-->
+				</div>
+		<div class="main-wrapper">
+			<!--<div class="maskk"></div>-->
+			<header>
+				<nav class="navbar navbar-default navbar-fixed-top">
+					<div class="container-fluid">
+						<div class="navbar-header">
+							<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+					        	<!--<span class="sr-only">Toggle navigation</span>-->
+					        	<span class="icon-bar"></span>
+					        	<span class="icon-bar"></span>
+					        	<span class="icon-bar"></span>
+					      	</button>
+					      	<a class="navbar-brand" href="#">Brand</a>
+						</div>
+						<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+							<ul class="nav navbar-nav">
+								<li class="active"><a href="#">Home</a></li>
+								<li id="sidebar_trigger"><a href="#" data-toggle = "modal" data-target = "#dds">link2</a></li>
+								<li class="dropdown">
+									<a href="#" class="dropdown-toggle" data-toggle="dropdown">link3<span class="caret"></span></a>
+									<ul class="dropdown-menu">
+										<li><a href="#"><span class="badge pull-right">10</span>1</a></li>
+										<li><a href="#"><span class="badge pull-right">9</span>2</a></li>
+										<li><a href="#"><span class="badge pull-right">8</span>3</a></li>
+									</ul>
+								</li>
+							</ul>
+							<form class="navbar-form navbar-right" role="search">
+						        <div class="form-group">
+						            <input type="text" class="form-control" placeholder="Search">
+						        </div>
+						        <button type="submit" class="btn btn-default">搜索</button>
+						    </form>
+						</div>
+					</div>
+				</nav>
+			</header><!--页头结束-->
+			
+			<div class="content">
+				<div id="lunbo">
+					<div id="carousel-example-generic" class="carousel slide" data-ride="carousel">
+						<!--轮播指标-->
+						<ol class="carousel-indicators">
+						   <li data-target="#carousel-example-generic" data-slide-to="0" class="active"></li>
+						   <li data-target="#carousel-example-generic" data-slide-to="1"></li>
+						   <li data-target="#carousel-example-generic" data-slide-to="2"></li>
+						</ol>
+						<!--轮播项目-->
+						<div class="carousel-inner" role="listbox">
+						    <div class="item active">
+						    	<img src="img/57ecad2fe3939.jpg" alt="pic1">
+						    	<div class="carousel-caption">
+						        	<h1>A</h1>
+						        	标题1
+						    	</div>
+						    </div>
+						    <div class="item">
+						    	<img src="img/9299f6350c6d113698486636dd5c1070.jpg" alt="pic2">
+						    	<div class="carousel-caption">
+						        	标题2
+						    	</div>
+						    </div>
+						    <div class="item">
+						    	<img src="img/ebbf71ea30cfc1efd1860e245c3cdf35_副本.jpg" alt="pic3">
+						    	<div class="carousel-caption">
+						        	标题3
+						    	</div>
+						    </div>
+						</div>
+						<!--轮播导航-->
+						<a class="left carousel-control" href="#carousel-example-generic" role="button" data-slide="prev">
+						    <span class="glyphicon glyphicon-chevron-left"></span>
+						   	<span class="sr-only">Previous</span>
+						</a>
+						<a class="right carousel-control" href="#carousel-example-generic" role="button" data-slide="next">
+						    <span class="glyphicon glyphicon-chevron-right"></span>
+						    <span class="sr-only">Next</span>
+						</a>
+					</div>
+				</div>
+				<!--<div id="wenzi">-->
+				<div id="suoluetu">
+					<div class="container-fluid">
+						<div class="row">
+							<div class="col-xs-12 col-sm-6 col-md-3">
+								<div class="thumbnail">
+									<img src="img/banner.jpg"/>
+									<div class="caption">
+										<h3>dd</h3>
+										<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Laudantium blanditiis sequi delectus fugit reiciendis a nisi cum quis fuga. Iusto at nulla quae earum quibusdam quisquam mollitia ad possimus maxime!</p>
+										<p>
+											<a href="#" class="btn btn-primary">one</a>
+											<a href="#" class="btn btn-default">01</a>
+										</p>
+									</div>
+								</div>
+							</div>
+							<div class="col-xs-12 col-sm-6 col-md-3">
+								<div class="thumbnail">
+									<img src="img/banner.jpg"/>
+									<div class="caption">
+										<h3>dd</h3>
+										<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Laudantium blanditiis sequi delectus fugit reiciendis a nisi cum quis fuga. Iusto at nulla quae earum quibusdam quisquam mollitia ad possimus maxime!</p>
+										<p>
+											<a href="#" class="btn btn-primary">one</a>
+											<a href="#" class="btn btn-default">01</a>
+										</p>
+									</div>
+								</div>
+							</div>
+							<div class="col-xs-12 col-sm-6 col-md-3">
+								<div class="thumbnail">
+									<img src="img/banner.jpg"/>
+									<div class="caption">
+										<h3>dd</h3>
+										<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Laudantium blanditiis sequi delectus fugit reiciendis a nisi cum quis fuga. Iusto at nulla quae earum quibusdam quisquam mollitia ad possimus maxime!</p>
+										<p>
+											<a href="#" class="btn btn-primary">one</a>
+											<a href="#" class="btn btn-default">01</a>
+										</p>
+									</div>
+								</div>
+							</div>
+							<div class="col-xs-12 col-sm-6 col-md-3">
+								<div class="thumbnail">
+									<img src="img/banner.jpg"/>
+									<div class="caption">
+										<h3>dd</h3>
+										<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Laudantium blanditiis sequi delectus fugit reiciendis a nisi cum quis fuga. Iusto at nulla quae earum quibusdam quisquam mollitia ad possimus maxime!</p>
+										<p>
+											<a href="#" class="btn btn-primary">one</a>
+											<a href="#" class="btn btn-default">01</a>
+										</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div id="wenzi" class="container-fluid">
+					<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Fuga tenetur enim in porro voluptatibus aut veritatis eos reprehenderit repellat officiis quos ipsum sint neque consequatur vel dolorem a possimus nemo?</p>
+					<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Eveniet omnis ea magnam voluptate iusto adipisci excepturi tenetur aliquam labore reprehenderit incidunt ut eius perferendis quidem est perspiciatis veniam distinctio aspernatur.</p>
+					<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Pariatur libero nemo neque voluptates voluptas eveniet in explicabo facere eum est fugit excepturi dolor enim veritatis sapiente. Quo dolore voluptates consequatur.</p>
+					<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Pariatur libero nemo neque voluptates voluptas eveniet in explicabo facere eum est fugit excepturi dolor enim veritatis sapiente. Quo dolore voluptates consequatur.</p>
+					<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Pariatur libero nemo neque voluptates voluptas eveniet in explicabo facere eum est fugit excepturi dolor enim veritatis sapiente. Quo dolore voluptates consequatur.</p>
+					<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Pariatur libero nemo neque voluptates voluptas eveniet in explicabo facere eum est fugit excepturi dolor enim veritatis sapiente. Quo dolore voluptates consequatur.</p>
+					<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Pariatur libero nemo neque voluptates voluptas eveniet in explicabo facere eum est fugit excepturi dolor enim veritatis sapiente. Quo dolore voluptates consequatur.</p>
+					<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Pariatur libero nemo neque voluptates voluptas eveniet in explicabo facere eum est fugit excepturi dolor enim veritatis sapiente. Quo dolore voluptates consequatur.</p>
+					<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Pariatur libero nemo neque voluptates voluptas eveniet in explicabo facere eum est fugit excepturi dolor enim veritatis sapiente. Quo dolore voluptates consequatur.</p>
+					<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Pariatur libero nemo neque voluptates voluptas eveniet in explicabo facere eum est fugit excepturi dolor enim veritatis sapiente. Quo dolore voluptates consequatur.</p>
+				</div>
+				<!--</div>-->
+				<div class="jumbotron">
+					<div class="container-fluid">						
+						<h1>totally sucker!</h1>
+						<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quisquam soluta dolorem sapiente ab ad eligendi facere saepe repudiandae eos sit hic ea praesentium sint excepturi mollitia adipisci debitis ipsa porro!</p>
+						<p><a class="btn btn-primary btn-lg" href="#" role="button">click!</a></p>
+					</div>
+				</div>	
+			</div><!--内容结束-->
+			
+			<footer>				
+				<div id="yejiao">
+					Lorem ipsum dolor sit amet, consectetur adipisicing elit. Optio labore asperiores dolorem fugit expedita voluptatum blanditiis fugiat possimus iste minima autem inventore illo modi eligendi at repudiandae delectus consequuntur voluptate.
+				</div>
+			</footer><!--页脚结束-->
+			<div id="motaikuang">
+				<button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#dds">modal button</button><!--模态框按钮-->
+				<div class="modal fade" id="dds">
+					<div class="modal-dialog">
+						<div class="modal-content">
+							<div class="modal-header">
+								<button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+								<h4 class="modal-title">md title</h4>
+							</div>
+							<div class="modal-body">
+								<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Asperiores quis mollitia dolor at placeat suscipit voluptatem quasi dolorem nihil possimus assumenda adipisci illo praesentium ipsa omnis! Cupiditate id excepturi laboriosam.</p>
+								<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Velit mollitia magni recusandae quia eveniet doloremque ullam ea aspernatur odit dolores. Suscipit fuga nulla doloremque amet quasi voluptates ut pariatur iusto.</p>
+								<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Veniam officiis adipisci vitae aperiam sequi quaerat asperiores explicabo quam alias illum tempora facilis tempore laudantium sint enim possimus quae iusto quos.</p>
+								<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Deserunt nihil consectetur eum est perspiciatis omnis atque nisi eius sapiente rerum cum veniam dolores iusto fugit ex ea praesentium quod illum?</p>
+								<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quam unde quia consequatur sint quasi eos corporis eius fugit ad expedita. Commodi sed deserunt excepturi sint blanditiis officia ullam maxime et.</p>
+							</div>
+							<div class="modal-footer">
+								<button type="button" class="btn btn-default" data-dismiss="modal">close</button>
+								<button type="button" class="btn btn-primary">save</button>
+							</div>
+						</div>
+					</div>
+				</div><!--模态框-->
+			</div><!--模态框结束-->
+			<!--<div class="mask"></div>-->
+			<!--<div id="sidebar">
+				<ul>
+					<li><a href="#">item1</a></li>
+					<li><a href="#">item2</a></li>
+					<li><a href="#">item3</a></li>
+					<li><a href="#">item4</a></li>
+					<li><a href="#">item5</a></li>
+				</ul>
+			</div>-->
+		</div>
+		<div id="shipin">
+			<video poster="img/banner.jpg" width="100%" height="auto" controls>
+				<source src="mourendemuguang.mp4" type="video/mp4"></source>
+				<!--<source src="myvideo.ogv" type="video/ogg"></source>-->
+				<!--<source src="myvideo.webm" type="video/webm"></source>-->
+				<!--<object width="" height="" type="application/x-shockwave-flash" data="myvideo.swf">
+					<param name="movie" value="myvideo.swf" />
+					<param name="flashvars" value="autostart=true&amp;file=myvideo.swf" />
+				</object>
+				当前浏览器不支持 video直接播放，点击这里下载视频： <a href="myvideo.webm">下载视频</a>-->
+			</video>
+		</div>
+		<button class="back-to-top"></button>
+		
+		<script type="text/javascript" src="js/jquery-3.1.1.min.js"></script>
+		<script type="text/javascript" src="js/bootstrap.js"></script>
+		<script type="text/javascript" src="js/bootbph.js"></script>
+		<!--<script type="text/javascript" src="responsive-nav.js-master/responsive-nav.js-master/responsive-nav.js"></script>-->	
+	</body>
+</html>
